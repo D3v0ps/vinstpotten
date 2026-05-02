@@ -1,0 +1,60 @@
+# Credentials & secrets — never commit these
+.env
+.env.*
+!.env.example
+secrets/
+.secrets/
+credentials
+credentials.*
+*.credentials
+deploy.config
+deploy.config.*
+.deploy
+.deploy.*
+deploy-*.sh
+*.secret
+*.secrets
+
+# SSH / keys
+*.pem
+*.key
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+*.ppk
+.ssh/
+known_hosts
+
+# Hosting / FTP configs that often hold creds
+.ftpconfig
+sftp-config.json
+.netrc
+
+# OS
+.DS_Store
+Thumbs.db
+.Trashes
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Build output
+dist/
+build/
+node_modules/
+.cache/
+.parcel-cache/
+.next/
+.nuxt/
+out/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-error.log
+yarn-debug.log
