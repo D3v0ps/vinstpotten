@@ -30,10 +30,27 @@ npm run dev                # Starta dev-server på http://localhost:5173
 
 ### Supabase setup
 
-1. Skapa projekt på supabase.com.
-2. Kopiera Project URL + anon key till `.env`.
-3. Kör migrationen: `supabase migration up` eller klistra in `supabase/migrations/20260502000001_init.sql` i Supabase SQL editor.
-4. (Senare) Konfigurera magic-link template i Auth → Email templates.
+Project: `iiwuyaqbueffptsuxhta` · URL: `https://iiwuyaqbueffptsuxhta.supabase.co`
+
+1. Hämta anon key på supabase.com → Settings → API → "Project API keys" → `anon public`.
+2. Lägg in i `.env`:
+   ```
+   VITE_SUPABASE_URL=https://iiwuyaqbueffptsuxhta.supabase.co
+   VITE_SUPABASE_ANON_KEY=<anon public key>
+   ```
+3. Kör migrationen — antingen via Supabase MCP (`claude /mcp` → `supabase` → authenticate, sedan be Claude köra migrationen), eller manuellt:
+   - SQL Editor → New query → klistra in `supabase/migrations/20260502000001_init.sql` → Run.
+4. (Senare) Konfigurera magic-link-mejlmall i Auth → Email templates.
+
+### Supabase MCP (för AI-assisterad utveckling)
+
+Repot innehåller `.mcp.json` som registrerar Supabase MCP-servern. Första gången du kör Claude Code i repot:
+
+```bash
+claude /mcp                    # Välj 'supabase' → Authenticate
+```
+
+Efter autentisering kan Claude köra schema-ändringar, queries och seeding direkt mot ditt projekt.
 
 ## Deploy
 
