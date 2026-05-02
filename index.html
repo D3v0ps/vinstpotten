@@ -1,0 +1,757 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Vinstpotten 2026 — Designriktningar</title>
+<meta name="description" content="Vinstpotten — klasskassan på en vecka. Tre designriktningar för 2026." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: #f0eee9; font-family: "Inter Tight", -apple-system, system-ui, sans-serif; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+  #root { min-height: 100vh; }
+  *::-webkit-scrollbar { display: none; }
+  * { scrollbar-width: none; }
+  a { color: inherit; }
+  html { scroll-behavior: smooth; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+
+<script type="text/babel" data-presets="env,react">
+// ─────────────────────────────────────────────────────────────
+// CountUp — animates numerically toward `value`
+// ─────────────────────────────────────────────────────────────
+function CountUp({ value, duration = 400, format = (n) => n.toLocaleString('sv-SE') }) {
+  const [shown, setShown] = React.useState(value);
+  React.useEffect(() => {
+    const from = shown;
+    const start = performance.now();
+    let raf;
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const v = Math.round(from + (value - from) * eased);
+      setShown(v);
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value]);
+  return <>{format(shown)}</>;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Calculator math
+// ─────────────────────────────────────────────────────────────
+const PRICE_PER_SHIRT = 249;
+const COST_PER_SHIRT = 95;
+const PROFIT_PER_SHIRT = PRICE_PER_SHIRT - COST_PER_SHIRT;
+
+function calcResults(sellers, shirtsPer) {
+  const totalShirts = sellers * shirtsPer;
+  const revenue = totalShirts * PRICE_PER_SHIRT;
+  const profit = totalShirts * PROFIT_PER_SHIRT;
+  return { totalShirts, revenue, profit };
+}
+
+// ─────────────────────────────────────────────────────────────
+// Themable slider
+// ─────────────────────────────────────────────────────────────
+function ThemedSlider({ label, val, setVal, min, max, suffix, accent = '#000', track = '#e5e0d6', thumbBorder = '#000', thumbFill = '#fff', tickColor = 'rgba(0,0,0,0.18)', valueFont = 'inherit', valueSize = 56, ticks }) {
+  const trackRef = React.useRef(null);
+  const dragging = React.useRef(false);
+  const set = (clientX) => {
+    const r = trackRef.current?.getBoundingClientRect();
+    if (!r) return;
+    const t = Math.max(0, Math.min(1, (clientX - r.left) / r.width));
+    setVal(Math.round(min + t * (max - min)));
+  };
+  const pct = ((val - min) / (max - min)) * 100;
+  return (
+    <div style={{ width: '100%' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14, gap: 16, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.65 }}>{label}</span>
+        <span style={{ fontFamily: valueFont, fontSize: valueSize, lineHeight: 1, fontWeight: 400, fontVariantNumeric: 'tabular-nums' }}>
+          <CountUp value={val} duration={180} />
+          {suffix && <span style={{ fontSize: valueSize * 0.4, marginLeft: 6, opacity: 0.55 }}>{suffix}</span>}
+        </span>
+      </div>
+      <div
+        ref={trackRef}
+        onPointerDown={(e) => { dragging.current = true; e.currentTarget.setPointerCapture(e.pointerId); set(e.clientX); }}
+        onPointerMove={(e) => { if (dragging.current) set(e.clientX); }}
+        onPointerUp={(e) => { dragging.current = false; e.currentTarget.releasePointerCapture?.(e.pointerId); }}
+        style={{ position: 'relative', height: 44, cursor: 'pointer', touchAction: 'none', userSelect: 'none' }}
+      >
+        <div style={{ position: 'absolute', top: 21, left: 0, right: 0, height: 2, background: track, borderRadius: 2 }} />
+        <div style={{ position: 'absolute', top: 21, left: 0, width: `${pct}%`, height: 2, background: accent, borderRadius: 2 }} />
+        {ticks && (
+          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+            {Array.from({ length: ticks }).map((_, i) => {
+              const tpct = (i / (ticks - 1)) * 100;
+              return <div key={i} style={{ position: 'absolute', left: `${tpct}%`, top: 18, width: 1, height: 8, background: tickColor }} />;
+            })}
+          </div>
+        )}
+        <div style={{
+          position: 'absolute', top: 6, left: `calc(${pct}% - 16px)`,
+          width: 32, height: 32, borderRadius: '50%',
+          background: thumbFill, border: `2px solid ${thumbBorder}`,
+          boxShadow: '0 2px 6px rgba(0,0,0,0.12)', transition: 'transform .12s',
+        }} />
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Cases (placeholder data — riktig copy + foto enligt brief §8)
+// ─────────────────────────────────────────────────────────────
+const CASES = [
+  { klass: '8B · Norsborgsskolan', where: 'Stockholm', shirts: 412, summa: 28748, goal: 'Klassresa till Berlin', quote: 'Vi sålde slut på fyra veckor. Roligaste skolprojektet hittills.', person: 'Mira, klassrepresentant', accent: '#7B5E89' },
+  { klass: 'IK Brage P14', where: 'Borlänge', shirts: 287, summa: 19998, goal: 'Cup-resa, Gothia 2026', quote: 'Tröjorna var slutsålda före första matchen. Föräldrar köpte fyra var.', person: 'Karim, lagledare', accent: '#3D5A4A' },
+  { klass: 'Hammarö ridklubb', where: 'Värmland', shirts: 198, summa: 13818, goal: 'Ny ridbana', quote: 'Snabbare än vi hann skicka ut bankuppgifter.', person: 'Annika, ordförande', accent: '#A85C3F' },
+];
+
+function PhotoPlaceholder({ label = 'CLASS PHOTO', tone = 'warm', style = {} }) {
+  const stripes = tone === 'dark'
+    ? 'repeating-linear-gradient(135deg, #1a1612 0 12px, #221d18 12px 24px)'
+    : tone === 'plum'
+      ? 'repeating-linear-gradient(135deg, #3a2a3e 0 12px, #432f47 12px 24px)'
+      : 'repeating-linear-gradient(135deg, #e3ddd0 0 12px, #ddd6c7 12px 24px)';
+  const text = tone === 'warm' ? '#7a6a5a' : 'rgba(255,255,255,0.55)';
+  return (
+    <div style={{ background: stripes, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', ...style }}>
+      <span style={{ fontFamily: 'JetBrains Mono, ui-monospace, monospace', fontSize: 11, color: text, letterSpacing: '0.18em', textTransform: 'uppercase', background: 'rgba(255,255,255,0.04)', padding: '6px 10px', borderRadius: 4, backdropFilter: 'blur(2px)' }}>↳ {label}</span>
+    </div>
+  );
+}
+
+function Tee({ fill = '#1a1612', size = 200, print, printColor = '#fff' }) {
+  return (
+    <svg viewBox="0 0 220 240" width={size} height={size} style={{ display: 'block' }}>
+      <path d="M70 20 L40 38 L18 70 L34 92 L60 80 L60 220 Q60 230 70 230 L150 230 Q160 230 160 220 L160 80 L186 92 L202 70 L180 38 L150 20 Q140 38 110 38 Q80 38 70 20 Z" fill={fill}/>
+      {print && (
+        <text x="110" y="140" textAnchor="middle" fontFamily="Instrument Serif, serif" fontSize="22" fill={printColor} fontStyle="italic" letterSpacing="0.04em">{print}</text>
+      )}
+    </svg>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Direction 1 · Säker — Editorial Scandinavian
+// ─────────────────────────────────────────────────────────────
+const SAKER = { bg: '#F4EFE6', fg: '#1A1410', primary: '#3F2742', primaryFg: '#F4EFE6', accent: '#A85C3F', rule: '#1A1410', muted: '#7A6A5A', display: '"Instrument Serif", "Times New Roman", serif', ui: '"Inter Tight", -apple-system, system-ui, sans-serif', mono: '"JetBrains Mono", ui-monospace, monospace' };
+
+function SakerHomepage({ theme = SAKER, mobile = false }) {
+  const T = theme;
+  const [sellers, setSellers] = React.useState(24);
+  const [shirtsPer, setShirtsPer] = React.useState(8);
+  const r = calcResults(sellers, shirtsPer);
+  const pad = mobile ? 24 : 80;
+
+  return (
+    <div style={{ width: '100%', background: T.bg, color: T.fg, fontFamily: T.ui, fontSize: mobile ? 15 : 16, lineHeight: 1.5, letterSpacing: '-0.01em' }}>
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: mobile ? '20px 24px' : '28px 80px', borderBottom: `1px solid ${T.fg}1a` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 28, height: 28, borderRadius: '50%', background: T.primary, display: 'grid', placeItems: 'center', color: T.primaryFg, fontFamily: T.display, fontSize: 18, fontStyle: 'italic' }}>v</div>
+          <span style={{ fontFamily: T.display, fontSize: mobile ? 22 : 24, letterSpacing: '-0.02em' }}>Vinstpotten</span>
+        </div>
+        {!mobile && (
+          <nav style={{ display: 'flex', gap: 32, fontSize: 14 }}>
+            {['Så funkar det', 'Kollektioner', 'Räkneverktyg', 'Berättelser', 'För föreningar'].map(x => (
+              <a key={x} style={{ color: T.fg, textDecoration: 'none', opacity: 0.8 }}>{x}</a>
+            ))}
+          </nav>
+        )}
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          {!mobile && <a style={{ fontSize: 14, opacity: 0.8 }}>Logga in</a>}
+          <button style={{ background: T.primary, color: T.primaryFg, border: 'none', padding: mobile ? '10px 14px' : '12px 20px', borderRadius: 999, fontSize: 14, fontWeight: 500, fontFamily: T.ui, cursor: 'pointer' }}>Beställ startpaket →</button>
+        </div>
+      </header>
+
+      <section style={{ padding: mobile ? '40px 24px 60px' : '80px 80px 100px', display: 'grid', gridTemplateColumns: mobile ? '1fr' : '1fr 1.1fr', gap: mobile ? 40 : 80, alignItems: 'start' }}>
+        <div>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: T.mono, fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', color: T.muted, marginBottom: 32 }}>
+            <span style={{ width: 24, height: 1, background: T.muted }} />
+            Sedan 2019 · 2 400 grupper hjälpta
+          </div>
+          <h1 style={{ fontFamily: T.display, fontSize: mobile ? 56 : 96, lineHeight: 0.95, margin: 0, fontWeight: 400, letterSpacing: '-0.025em' }}>
+            Klassresan,<br />
+            <em style={{ fontStyle: 'italic', color: T.primary }}>finansierad</em><br />
+            på en vecka.
+          </h1>
+          <p style={{ fontSize: mobile ? 17 : 19, lineHeight: 1.5, color: T.fg, opacity: 0.78, maxWidth: 460, marginTop: 32 }}>
+            Vi har redan tröjorna i lager. Ni får ett startpaket på fem dagar, säljer i klassen, lämnar in pengarna. Ingen designavgift, inga dolda kostnader, inget krångel.
+          </p>
+          <div style={{ display: 'flex', gap: 24, marginTop: 40, flexWrap: 'wrap' }}>
+            {[['3–5 dgr', 'leveranstid'], ['62%', 'genomsnittlig vinstmarginal'], ['0 kr', 'designavgift']].map(([n, l], i) => (
+              <div key={i} style={{ borderTop: `1px solid ${T.fg}33`, paddingTop: 12, minWidth: 100 }}>
+                <div style={{ fontFamily: T.display, fontSize: mobile ? 32 : 40, lineHeight: 1, letterSpacing: '-0.02em' }}>{n}</div>
+                <div style={{ fontSize: 12, color: T.muted, marginTop: 6, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ background: T.fg, color: T.bg, borderRadius: 4, padding: mobile ? 28 : 48, position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', top: 20, right: 24, fontFamily: T.mono, fontSize: 10, letterSpacing: '0.18em', opacity: 0.5, textTransform: 'uppercase' }}>Räkneverktyg / live</div>
+          <div style={{ fontFamily: T.display, fontSize: mobile ? 22 : 26, fontStyle: 'italic', lineHeight: 1.2, maxWidth: 360, marginBottom: 36, marginTop: 8 }}>
+            Räkna fram er klasskasse — dra i reglagen.
+          </div>
+          <div style={{ marginBottom: 32 }}>
+            <ThemedSlider label="Antal säljare" val={sellers} setVal={setSellers} min={5} max={60} accent={T.bg} track="rgba(244,239,230,0.18)" thumbBorder={T.bg} thumbFill={T.fg} tickColor="rgba(244,239,230,0.25)" valueFont={T.display} valueSize={mobile ? 56 : 80} suffix="elever" />
+          </div>
+          <div style={{ marginBottom: 40 }}>
+            <ThemedSlider label="Tröjor per säljare" val={shirtsPer} setVal={setShirtsPer} min={2} max={20} accent={T.bg} track="rgba(244,239,230,0.18)" thumbBorder={T.bg} thumbFill={T.fg} tickColor="rgba(244,239,230,0.25)" valueFont={T.display} valueSize={mobile ? 56 : 80} suffix="st" />
+          </div>
+          <div style={{ borderTop: '1px solid rgba(244,239,230,0.2)', paddingTop: 28 }}>
+            <div style={{ fontFamily: T.mono, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', opacity: 0.55, marginBottom: 8 }}>Beräknad nettovinst till klassen</div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+              <span style={{ fontFamily: T.display, fontSize: mobile ? 64 : 96, lineHeight: 0.9, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}><CountUp value={r.profit} /></span>
+              <span style={{ fontFamily: T.display, fontSize: mobile ? 28 : 40, opacity: 0.6 }}>kr</span>
+            </div>
+            <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 28 }}>
+              {r.totalShirts} tröjor · à {PRICE_PER_SHIRT} kr · {Math.round(PROFIT_PER_SHIRT/PRICE_PER_SHIRT*100)}% vinst per såld tröja
+            </div>
+            <button style={{ background: T.bg, color: T.fg, border: 'none', width: '100%', padding: '20px 24px', borderRadius: 999, fontSize: 16, fontWeight: 500, fontFamily: T.ui, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Beställ startpaket — leverans nästa vecka</span>
+              <span style={{ fontFamily: T.display, fontSize: 22 }}>→</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <div style={{ borderTop: `1px solid ${T.fg}1a`, borderBottom: `1px solid ${T.fg}1a`, padding: '20px 0', overflow: 'hidden', whiteSpace: 'nowrap', fontFamily: T.display, fontSize: mobile ? 24 : 32, fontStyle: 'italic' }}>
+        <div style={{ display: 'inline-flex', gap: 56, paddingLeft: pad }}>
+          {Array.from({length: 6}).map((_,i) => (
+            <span key={i} style={{ display: 'inline-flex', gap: 56, alignItems: 'center' }}>
+              <span>Norsborgsskolan 8B</span><span style={{ color: T.muted }}>·</span>
+              <span>IK Brage P14</span><span style={{ color: T.muted }}>·</span>
+              <span>Hammarö ridklubb</span><span style={{ color: T.muted }}>·</span>
+              <span>Mariaskolan 6A</span><span style={{ color: T.muted }}>·</span>
+              <span>Sirius F12</span><span style={{ color: T.muted }}>·</span>
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <section style={{ padding: mobile ? '60px 24px' : '120px 80px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: mobile ? 32 : 64, flexWrap: 'wrap', gap: 16 }}>
+          <h2 style={{ fontFamily: T.display, fontSize: mobile ? 40 : 64, margin: 0, letterSpacing: '-0.02em', fontWeight: 400 }}>
+            Så <em style={{ fontStyle: 'italic', color: T.primary }}>funkar</em> det.
+          </h2>
+          <div style={{ fontFamily: T.mono, fontSize: 11, letterSpacing: '0.16em', color: T.muted, textTransform: 'uppercase' }}>04 steg · ca 6 veckor</div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : 'repeat(4, 1fr)', gap: mobile ? 32 : 0 }}>
+          {[
+            ['01', 'Räkna ut potten', 'Två reglage, en summa. Bestäm volymen innan ni bokar mötet.'],
+            ['02', 'Beställ startpaket', 'Tre steg, mobilt BankID. Klart på två minuter.'],
+            ['03', 'Sälj i klassen', 'Tröjorna kommer på fem dagar. Säljmaterial och QR-länk följer med.'],
+            ['04', 'Ni får pengarna', 'Vi fakturerar bara det ni säljer. Resten skickar ni tillbaka utan kostnad.'],
+          ].map(([n, t, d], i) => (
+            <div key={i} style={{ borderTop: `1px solid ${T.fg}`, padding: '24px 24px 32px 0', borderRight: !mobile && i < 3 ? `1px solid ${T.fg}1a` : 'none', paddingLeft: !mobile && i > 0 ? 24 : 0 }}>
+              <div style={{ fontFamily: T.mono, fontSize: 11, letterSpacing: '0.18em', color: T.muted, marginBottom: 32 }}>{n}</div>
+              <div style={{ fontFamily: T.display, fontSize: mobile ? 26 : 28, lineHeight: 1.1, marginBottom: 14, letterSpacing: '-0.01em' }}>{t}</div>
+              <div style={{ fontSize: 14, color: T.fg, opacity: 0.7, lineHeight: 1.55 }}>{d}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section style={{ background: T.fg, color: T.bg, padding: mobile ? '60px 0' : '120px 0' }}>
+        <div style={{ padding: mobile ? '0 24px 32px' : '0 80px 64px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 16 }}>
+          <div style={{ fontFamily: T.mono, fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', opacity: 0.55 }}>Berättelse Nº 047 — 8B Norsborgsskolan</div>
+          <div style={{ fontFamily: T.mono, fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', opacity: 0.55 }}>Stockholm · våren 2025</div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : '1.2fr 1fr', gap: 0, alignItems: 'stretch' }}>
+          <PhotoPlaceholder label="412 tröjor sålda · klassfoto" tone="dark" style={{ minHeight: mobile ? 320 : 600 }} />
+          <div style={{ padding: mobile ? '40px 24px' : '60px 80px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: mobile ? 'auto' : 600 }}>
+            <div>
+              <div style={{ fontFamily: T.display, fontSize: mobile ? 44 : 80, lineHeight: 0.95, letterSpacing: '-0.02em' }}>
+                28 748 kr<br />
+                <span style={{ fontStyle: 'italic', opacity: 0.55, fontSize: '0.55em' }}>till klassresan,<br/>Berlin '25.</span>
+              </div>
+              <p style={{ fontSize: mobile ? 17 : 19, lineHeight: 1.45, marginTop: 32, opacity: 0.85, maxWidth: 420 }}>
+                "Vi sålde slut på fyra veckor. Tröjorna fanns hemma redan veckan vi bokade. Mormor köpte tre."
+              </p>
+              <div style={{ fontFamily: T.mono, fontSize: 11, letterSpacing: '0.14em', marginTop: 20, opacity: 0.55, textTransform: 'uppercase' }}>— Mira, klassrepresentant</div>
+            </div>
+            <div style={{ display: 'flex', gap: 32, marginTop: 48, paddingTop: 24, borderTop: '1px solid rgba(244,239,230,0.2)' }}>
+              <div><div style={{ fontFamily: T.mono, fontSize: 10, letterSpacing: '0.16em', opacity: 0.5, textTransform: 'uppercase' }}>Tröjor</div><div style={{ fontFamily: T.display, fontSize: 36 }}>412</div></div>
+              <div><div style={{ fontFamily: T.mono, fontSize: 10, letterSpacing: '0.16em', opacity: 0.5, textTransform: 'uppercase' }}>Säljperiod</div><div style={{ fontFamily: T.display, fontSize: 36 }}>4 v</div></div>
+              <div><div style={{ fontFamily: T.mono, fontSize: 10, letterSpacing: '0.16em', opacity: 0.5, textTransform: 'uppercase' }}>Marginal</div><div style={{ fontFamily: T.display, fontSize: 36 }}>62%</div></div>
+            </div>
+          </div>
+        </div>
+        <div style={{ padding: mobile ? '40px 24px 0' : '64px 80px 0', display: 'grid', gridTemplateColumns: mobile ? '1fr' : '1fr 1fr', gap: mobile ? 32 : 48 }}>
+          {CASES.slice(1).map((c, i) => (
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 20, alignItems: 'start' }}>
+              <PhotoPlaceholder label={c.klass.split('·')[0].trim()} tone="dark" style={{ height: 120 }} />
+              <div>
+                <div style={{ fontFamily: T.mono, fontSize: 10, letterSpacing: '0.14em', opacity: 0.5, textTransform: 'uppercase', marginBottom: 8 }}>{c.where} · {c.shirts} tröjor</div>
+                <div style={{ fontFamily: T.display, fontSize: 32, lineHeight: 1, letterSpacing: '-0.01em' }}>{c.summa.toLocaleString('sv-SE')} kr</div>
+                <div style={{ fontSize: 14, opacity: 0.65, marginTop: 8 }}>{c.goal}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section style={{ padding: mobile ? '60px 24px' : '120px 80px', textAlign: 'center', background: T.bg }}>
+        <div style={{ fontFamily: T.mono, fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', color: T.muted, marginBottom: 24 }}>Två minuter, inte två veckor</div>
+        <h2 style={{ fontFamily: T.display, fontSize: mobile ? 48 : 96, margin: 0, fontWeight: 400, letterSpacing: '-0.025em', lineHeight: 1 }}>
+          Beställ ert <em style={{ color: T.primary, fontStyle: 'italic' }}>startpaket</em><br/>så har ni det på torsdag.
+        </h2>
+        <button style={{ marginTop: 48, background: T.primary, color: T.primaryFg, border: 'none', padding: '24px 40px', borderRadius: 999, fontSize: 17, fontWeight: 500, fontFamily: T.ui, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 14 }}>
+          Beställ startpaket
+          <span style={{ fontFamily: T.display, fontSize: 22 }}>→</span>
+        </button>
+        <div style={{ fontSize: 13, color: T.muted, marginTop: 18 }}>Verifieras med Mobilt BankID · ingen bindningstid · inget förskott</div>
+      </section>
+
+      <footer style={{ borderTop: `1px solid ${T.fg}33`, padding: mobile ? '32px 24px' : '40px 80px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: T.mono, fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: T.muted, flexWrap: 'wrap', gap: 12 }}>
+        <span>Vinstpotten AB · Org 559123-4567</span>
+        <span>Stockholm · MMXXVI</span>
+      </footer>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Direction 2 · Djärv — Magazine poster
+// ─────────────────────────────────────────────────────────────
+const DJARV = { bg: '#F4EFE6', fg: '#0F0D0B', primary: '#3F2742', primaryFg: '#F4EFE6', acid: '#D4F25E', rule: '#0F0D0B', muted: '#7A6A5A', display: '"Instrument Serif", "Times New Roman", serif', ui: '"Inter Tight", -apple-system, system-ui, sans-serif', mono: '"JetBrains Mono", ui-monospace, monospace' };
+
+function DjarvHomepage({ theme = DJARV, mobile = false }) {
+  const T = theme;
+  const [sellers, setSellers] = React.useState(28);
+  const [shirtsPer, setShirtsPer] = React.useState(10);
+  const r = calcResults(sellers, shirtsPer);
+
+  return (
+    <div style={{ width: '100%', background: T.bg, color: T.fg, fontFamily: T.ui, fontSize: mobile ? 15 : 16, letterSpacing: '-0.01em' }}>
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: mobile ? '20px 20px' : '24px 40px' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, fontFamily: T.display, fontSize: mobile ? 24 : 28 }}>
+          <span style={{ fontStyle: 'italic' }}>Vinstpotten</span>
+          <span style={{ fontFamily: T.mono, fontSize: 10, letterSpacing: '0.18em', color: T.muted, textTransform: 'uppercase' }}>EST. MMXIX</span>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button style={{ background: 'transparent', border: `1px solid ${T.fg}`, color: T.fg, padding: mobile ? '10px 14px' : '12px 18px', borderRadius: 0, fontSize: 13, fontWeight: 500, fontFamily: T.ui, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Logga in</button>
+          <button style={{ background: T.fg, color: T.bg, border: `1px solid ${T.fg}`, padding: mobile ? '10px 14px' : '12px 18px', borderRadius: 0, fontSize: 13, fontWeight: 500, fontFamily: T.ui, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Beställ ↓</button>
+        </div>
+      </header>
+
+      <section style={{ padding: mobile ? '20px 20px 60px' : '0 40px 80px', position: 'relative' }}>
+        <div style={{ fontFamily: T.mono, fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', borderTop: `1.5px solid ${T.fg}`, borderBottom: `1.5px solid ${T.fg}`, padding: '12px 0', marginBottom: mobile ? 24 : 32, gap: 12, flexWrap: 'wrap' }}>
+          <span>Sveriges snabbaste klasskasse</span>
+          <span>Nº 026 · Våren 2026</span>
+        </div>
+
+        <h1 style={{ fontFamily: T.display, fontSize: mobile ? 84 : 220, lineHeight: 0.85, margin: 0, fontWeight: 400, letterSpacing: '-0.04em' }}>
+          Pengar<br/>
+          <span style={{ fontStyle: 'italic', display: 'inline-block', position: 'relative' }}>
+            till klassen
+            <span style={{ position: 'absolute', right: mobile ? -10 : -30, top: '50%', transform: 'translateY(-50%)', background: T.acid, padding: '4px 10px', fontFamily: T.mono, fontSize: mobile ? 9 : 12, fontStyle: 'normal', letterSpacing: '0.1em', textTransform: 'uppercase', color: T.fg, whiteSpace: 'nowrap' }}>+154 kr / tröja</span>
+          </span><br/>
+          <span style={{ color: T.primary }}>på en vecka.</span>
+        </h1>
+
+        <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : '1fr 1fr', gap: mobile ? 24 : 80, marginTop: mobile ? 32 : 64, paddingTop: 24, borderTop: `1px solid ${T.fg}33` }}>
+          <p style={{ fontSize: mobile ? 18 : 22, lineHeight: 1.4, margin: 0, maxWidth: 540 }}>
+            Vi har redan tröjorna. Ni säljer dem. Resten skickar ni tillbaka. <em style={{ fontFamily: T.display, fontStyle: 'italic' }}>Ingen designavgift, inget förskott, ingen 14-dagars katalogvänta</em> — vi levererar startpaketet på torsdag.
+          </p>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            <button style={{ background: T.fg, color: T.acid, border: 'none', padding: '24px 32px', fontSize: 16, fontWeight: 500, fontFamily: T.ui, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'inline-flex', alignItems: 'center', gap: 12 }}>
+              Beställ startpaket
+              <span style={{ fontFamily: T.display, fontSize: 24 }}>→</span>
+            </button>
+            <button style={{ background: 'transparent', color: T.fg, border: `1.5px solid ${T.fg}`, padding: '24px 32px', fontSize: 16, fontWeight: 500, fontFamily: T.ui, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              Räkna ut potten ↓
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section style={{ background: T.acid, color: T.fg, padding: mobile ? '60px 20px' : '120px 40px', position: 'relative' }}>
+        <div style={{ fontFamily: T.mono, fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', marginBottom: mobile ? 32 : 64, gap: 12, flexWrap: 'wrap' }}>
+          <span>§02 — Räkneverktyg</span>
+          <span>Live · uppdateras när du drar</span>
+        </div>
+        <h2 style={{ fontFamily: T.display, fontSize: mobile ? 56 : 144, lineHeight: 0.9, margin: 0, fontWeight: 400, letterSpacing: '-0.03em' }}>
+          Vad blir <em style={{ fontStyle: 'italic' }}>er</em><br/>potten?
+        </h2>
+        <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : '1fr 1fr', gap: mobile ? 40 : 80, marginTop: mobile ? 40 : 80 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+            <ThemedSlider label="Säljare i gruppen" val={sellers} setVal={setSellers} min={5} max={60} accent={T.fg} track="rgba(15,13,11,0.15)" thumbBorder={T.fg} thumbFill={T.acid} tickColor="rgba(15,13,11,0.2)" valueFont={T.display} valueSize={mobile ? 64 : 96} ticks={12} suffix="st" />
+            <ThemedSlider label="Tröjor per säljare" val={shirtsPer} setVal={setShirtsPer} min={2} max={20} accent={T.fg} track="rgba(15,13,11,0.15)" thumbBorder={T.fg} thumbFill={T.acid} tickColor="rgba(15,13,11,0.2)" valueFont={T.display} valueSize={mobile ? 64 : 96} ticks={10} suffix="st" />
+          </div>
+          <div style={{ background: T.fg, color: T.acid, padding: mobile ? 28 : 48, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', position: 'relative', minHeight: mobile ? 360 : 480 }}>
+            <div style={{ fontFamily: T.mono, fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', opacity: 0.7 }}>→ ni får in netto</div>
+            <div>
+              <div style={{ fontFamily: T.display, fontSize: mobile ? 100 : 200, lineHeight: 0.85, letterSpacing: '-0.04em', fontVariantNumeric: 'tabular-nums' }}><CountUp value={r.profit} /></div>
+              <div style={{ fontFamily: T.display, fontSize: mobile ? 28 : 48, fontStyle: 'italic', marginTop: 4 }}>kronor</div>
+            </div>
+            <div style={{ borderTop: `1px solid ${T.acid}33`, paddingTop: 20, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+              <div><div style={{ fontFamily: T.mono, fontSize: 9, letterSpacing: '0.16em', opacity: 0.55, textTransform: 'uppercase' }}>Tröjor</div><div style={{ fontFamily: T.display, fontSize: 28 }}>{r.totalShirts}</div></div>
+              <div><div style={{ fontFamily: T.mono, fontSize: 9, letterSpacing: '0.16em', opacity: 0.55, textTransform: 'uppercase' }}>Marginal</div><div style={{ fontFamily: T.display, fontSize: 28 }}>62%</div></div>
+              <div><div style={{ fontFamily: T.mono, fontSize: 9, letterSpacing: '0.16em', opacity: 0.55, textTransform: 'uppercase' }}>Levereras</div><div style={{ fontFamily: T.display, fontSize: 28 }}>5 dgr</div></div>
+            </div>
+            <button style={{ background: T.acid, color: T.fg, border: 'none', padding: '20px 24px', fontSize: 16, fontWeight: 500, fontFamily: T.ui, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              Beställ startpaket
+              <span style={{ fontFamily: T.display, fontSize: 22 }}>↗</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section style={{ padding: mobile ? '60px 20px' : '120px 40px' }}>
+        <div style={{ fontFamily: T.mono, fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', borderBottom: `1.5px solid ${T.fg}`, paddingBottom: 12, marginBottom: mobile ? 32 : 48, gap: 12, flexWrap: 'wrap' }}>
+          <span>§03 — Berättelser</span>
+          <span>2 400+ grupper sedan 2019</span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : '1.4fr 1fr', gap: mobile ? 24 : 48, marginBottom: mobile ? 48 : 96, alignItems: 'stretch' }}>
+          <PhotoPlaceholder label="8B Norsborgsskolan · Berlinresa" tone="plum" style={{ minHeight: mobile ? 280 : 540 }} />
+          <div style={{ background: T.primary, color: T.primaryFg, padding: mobile ? 28 : 40, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontFamily: T.mono, fontSize: 10, letterSpacing: '0.18em', opacity: 0.65, textTransform: 'uppercase', marginBottom: 24 }}>Case 047 / Stockholm / vt-25</div>
+              <div style={{ fontFamily: T.display, fontSize: mobile ? 88 : 160, lineHeight: 0.85, letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums' }}>28 748</div>
+              <div style={{ fontFamily: T.display, fontStyle: 'italic', fontSize: mobile ? 32 : 48, marginTop: 4 }}>kronor.</div>
+            </div>
+            <p style={{ fontSize: mobile ? 17 : 20, lineHeight: 1.4, marginTop: 32, maxWidth: 360 }}>
+              "Tröjorna fanns hemma redan veckan vi bokade. Mormor köpte tre."
+              <span style={{ display: 'block', fontFamily: T.mono, fontSize: 11, letterSpacing: '0.14em', marginTop: 16, opacity: 0.7, textTransform: 'uppercase' }}>— Mira, klassrep · 8B</span>
+            </p>
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : '1fr 1fr', gap: mobile ? 32 : 48 }}>
+          {CASES.slice(1).map((c, i) => (
+            <div key={i} style={{ borderTop: `1px solid ${T.fg}` }}>
+              <PhotoPlaceholder label={c.klass} tone="warm" style={{ height: mobile ? 220 : 320, marginTop: 20 }} />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, paddingTop: 20 }}>
+                <div>
+                  <div style={{ fontFamily: T.mono, fontSize: 10, letterSpacing: '0.16em', color: T.muted, textTransform: 'uppercase', marginBottom: 8 }}>{c.where}</div>
+                  <div style={{ fontFamily: T.display, fontSize: 28, lineHeight: 1, letterSpacing: '-0.01em' }}>{c.klass}</div>
+                  <div style={{ fontSize: 13, opacity: 0.7, marginTop: 6 }}>{c.goal}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontFamily: T.display, fontSize: mobile ? 44 : 56, lineHeight: 0.9, letterSpacing: '-0.02em' }}>{c.summa.toLocaleString('sv-SE')}</div>
+                  <div style={{ fontFamily: T.mono, fontSize: 10, letterSpacing: '0.16em', color: T.muted, textTransform: 'uppercase', marginTop: 4 }}>kr · {c.shirts} tröjor</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section style={{ background: T.fg, color: T.bg, padding: mobile ? '60px 20px' : '120px 40px' }}>
+        <div style={{ fontFamily: T.mono, fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', borderBottom: `1.5px solid ${T.bg}33`, paddingBottom: 12, marginBottom: mobile ? 32 : 48, gap: 12, flexWrap: 'wrap' }}>
+          <span>§04 — Så funkar det</span>
+          <span>Klart på 6 veckor</span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : 'repeat(4, 1fr)', gap: mobile ? 24 : 32 }}>
+          {[
+            ['Räkna ut potten', 'Två reglage, en summa.', '60 sek'],
+            ['Beställ startpaket', 'Tre steg, mobilt BankID.', '2 min'],
+            ['Sälj i klassen', 'QR-länk + säljmaterial.', '4 v'],
+            ['Få pengarna', 'Faktura på det sålda.', '14 dgr'],
+          ].map(([t, d, time], i) => (
+            <div key={i} style={{ borderTop: `1.5px solid ${T.bg}`, paddingTop: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 24 }}>
+                <span style={{ fontFamily: T.mono, fontSize: 11, letterSpacing: '0.18em' }}>0{i+1}</span>
+                <span style={{ fontFamily: T.mono, fontSize: 11, letterSpacing: '0.18em', color: T.acid }}>{time}</span>
+              </div>
+              <div style={{ fontFamily: T.display, fontSize: mobile ? 30 : 32, lineHeight: 1, marginBottom: 12, letterSpacing: '-0.01em' }}>{t}</div>
+              <div style={{ fontSize: 14, opacity: 0.7 }}>{d}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section style={{ background: T.acid, padding: mobile ? '80px 20px' : '160px 40px', textAlign: 'center' }}>
+        <h2 style={{ fontFamily: T.display, fontSize: mobile ? 56 : 160, margin: 0, fontWeight: 400, letterSpacing: '-0.04em', lineHeight: 0.85 }}>
+          Beställ.<br/><em style={{ fontStyle: 'italic' }}>Sälj.</em><br/>Klart.
+        </h2>
+        <button style={{ marginTop: 64, background: T.fg, color: T.acid, border: 'none', padding: '28px 48px', fontSize: 18, fontWeight: 500, fontFamily: T.ui, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'inline-flex', alignItems: 'center', gap: 16 }}>
+          Starta beställning
+          <span style={{ fontFamily: T.display, fontSize: 24 }}>→</span>
+        </button>
+      </section>
+
+      <footer style={{ padding: mobile ? '32px 20px' : '40px', display: 'flex', justifyContent: 'space-between', fontFamily: T.mono, fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', color: T.muted, flexWrap: 'wrap', gap: 12 }}>
+        <span>Vinstpotten AB · 559123-4567</span>
+        <span>Stockholm · MMXXVI</span>
+      </footer>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Direction 3 · Oväntad — Calculator-as-receipt
+// ─────────────────────────────────────────────────────────────
+const OVANTAD = { bg: '#EDE7DA', fg: '#191613', paper: '#F8F4EA', primary: '#3F2742', primaryFg: '#F8F4EA', ink: '#191613', rule: '#191613', muted: '#7A6A5A', display: '"Instrument Serif", "Times New Roman", serif', ui: '"Inter Tight", -apple-system, system-ui, sans-serif', mono: '"JetBrains Mono", ui-monospace, monospace' };
+
+function ReceiptLine({ label, value, T, big }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderBottom: `1px dashed ${T.fg}44`, padding: '10px 0', fontFamily: T.mono, fontSize: big ? 14 : 12, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+      <span style={{ opacity: 0.7 }}>{label}</span>
+      <span style={{ fontVariantNumeric: 'tabular-nums' }}>{value}</span>
+    </div>
+  );
+}
+
+function OvantadHomepage({ theme = OVANTAD, mobile = false }) {
+  const T = theme;
+  const [sellers, setSellers] = React.useState(26);
+  const [shirtsPer, setShirtsPer] = React.useState(9);
+  const r = calcResults(sellers, shirtsPer);
+
+  return (
+    <div style={{ width: '100%', background: T.bg, color: T.fg, fontFamily: T.ui, fontSize: mobile ? 15 : 16, letterSpacing: '-0.01em' }}>
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: mobile ? '20px 24px' : '28px 60px' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+          <span style={{ fontFamily: T.display, fontSize: mobile ? 26 : 30, fontStyle: 'italic', letterSpacing: '-0.02em' }}>Vinstpotten</span>
+          <span style={{ fontFamily: T.mono, fontSize: 10, letterSpacing: '0.18em', color: T.muted, textTransform: 'uppercase' }}>· kasse · sedan 2019</span>
+        </div>
+        <nav style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {!mobile && ['Verktyg', 'Kollektioner', 'Berättelser', 'Frågor'].map(x => (
+            <a key={x} style={{ fontFamily: T.mono, fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: T.fg, textDecoration: 'none', padding: '8px 12px' }}>{x}</a>
+          ))}
+          <button style={{ background: T.primary, color: T.primaryFg, border: 'none', padding: mobile ? '10px 14px' : '12px 22px', borderRadius: 999, fontFamily: T.mono, fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', marginLeft: 12 }}>Beställ</button>
+        </nav>
+      </header>
+
+      <section style={{ padding: mobile ? '20px 24px 80px' : '20px 60px 120px', display: 'grid', gridTemplateColumns: mobile ? '1fr' : '1fr 0.85fr', gap: mobile ? 48 : 80, alignItems: 'start' }}>
+        <div>
+          <div style={{ fontFamily: T.mono, fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: T.muted, marginBottom: 32, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: T.primary }} />
+            Räknar live · dra i reglagen ↘
+          </div>
+          <h1 style={{ fontFamily: T.display, fontSize: mobile ? 64 : 116, lineHeight: 0.92, margin: 0, fontWeight: 400, letterSpacing: '-0.025em' }}>
+            Det här blir<br/>
+            <em style={{ fontStyle: 'italic', color: T.primary }}>er klassresa</em>,<br/>
+            i siffror.
+          </h1>
+          <p style={{ fontSize: mobile ? 17 : 20, lineHeight: 1.5, marginTop: 32, maxWidth: 460, color: T.fg, opacity: 0.78 }}>
+            Vi har redan tröjorna i lager här i Sverige. Ni säljer dem under fyra veckor, behåller vinsten och skickar tillbaka det som blir över. Inget förskott. Inget designarvode. Inga 14 dagars katalogvänta.
+          </p>
+
+          <div style={{ marginTop: 40, display: 'grid', gridTemplateColumns: mobile ? '1fr 1fr' : '1fr 1fr 1fr', gap: 4, border: `1px solid ${T.fg}`, padding: 1 }}>
+            {[['Levereras på', '3–5 dgr'], ['Vinst per tröja', '154 kr'], ['Designavgift', '0 kr']].map(([l, n], i) => (
+              <div key={i} style={{ background: T.paper, padding: 16 }}>
+                <div style={{ fontFamily: T.mono, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: T.muted, marginBottom: 6 }}>{l}</div>
+                <div style={{ fontFamily: T.display, fontSize: mobile ? 28 : 32, letterSpacing: '-0.02em' }}>{n}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ marginTop: 48 }}>
+            <ThemedSlider label="Hur många säljer i gruppen?" val={sellers} setVal={setSellers} min={5} max={60} accent={T.primary} track={`${T.fg}1f`} thumbBorder={T.fg} thumbFill={T.bg} tickColor={`${T.fg}30`} valueFont={T.display} valueSize={mobile ? 56 : 80} ticks={12} suffix="elever" />
+            <div style={{ height: 32 }} />
+            <ThemedSlider label="Tröjor per säljare?" val={shirtsPer} setVal={setShirtsPer} min={2} max={20} accent={T.primary} track={`${T.fg}1f`} thumbBorder={T.fg} thumbFill={T.bg} tickColor={`${T.fg}30`} valueFont={T.display} valueSize={mobile ? 56 : 80} ticks={10} suffix="st" />
+          </div>
+        </div>
+
+        <div style={{ position: mobile ? 'static' : 'sticky', top: 40 }}>
+          <div style={{
+            background: T.paper, color: T.fg, padding: mobile ? '50px 28px' : '64px 44px',
+            position: 'relative',
+            boxShadow: '0 1px 0 rgba(0,0,0,0.04), 0 24px 60px -20px rgba(40,30,30,0.18)',
+            clipPath: 'polygon(0 12px, 4% 0, 8% 12px, 12% 0, 16% 12px, 20% 0, 24% 12px, 28% 0, 32% 12px, 36% 0, 40% 12px, 44% 0, 48% 12px, 52% 0, 56% 12px, 60% 0, 64% 12px, 68% 0, 72% 12px, 76% 0, 80% 12px, 84% 0, 88% 12px, 92% 0, 96% 12px, 100% 0, 100% calc(100% - 12px), 96% 100%, 92% calc(100% - 12px), 88% 100%, 84% calc(100% - 12px), 80% 100%, 76% calc(100% - 12px), 72% 100%, 68% calc(100% - 12px), 64% 100%, 60% calc(100% - 12px), 56% 100%, 52% calc(100% - 12px), 48% 100%, 44% calc(100% - 12px), 40% 100%, 36% calc(100% - 12px), 32% 100%, 28% calc(100% - 12px), 24% 100%, 20% calc(100% - 12px), 16% 100%, 12% calc(100% - 12px), 8% 100%, 4% calc(100% - 12px), 0 100%)'
+          }}>
+            <div style={{ textAlign: 'center', borderBottom: `1px solid ${T.fg}`, paddingBottom: 16, marginBottom: 20 }}>
+              <div style={{ fontFamily: T.display, fontSize: mobile ? 28 : 32, letterSpacing: '-0.01em' }}>Vinstpotten</div>
+              <div style={{ fontFamily: T.mono, fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', color: T.muted, marginTop: 4 }}>kvitto · simulerat · 2026.05.02</div>
+            </div>
+            <ReceiptLine T={T} label="Säljare" value={`${sellers} st`} />
+            <ReceiptLine T={T} label="Tröjor / säljare" value={`${shirtsPer} st`} />
+            <ReceiptLine T={T} label="Tröjor totalt" value={`${r.totalShirts} st`} />
+            <div style={{ height: 16 }} />
+            <ReceiptLine T={T} label="Pris / tröja" value={`${PRICE_PER_SHIRT} kr`} />
+            <ReceiptLine T={T} label="Bruttoförsäljning" value={`${r.revenue.toLocaleString('sv-SE')} kr`} />
+            <ReceiptLine T={T} label="Avdrag (Vinstpotten)" value={`− ${(r.totalShirts * COST_PER_SHIRT).toLocaleString('sv-SE')} kr`} />
+            <div style={{ marginTop: 24, padding: '20px 0', borderTop: `2px solid ${T.fg}`, borderBottom: `2px double ${T.fg}`, textAlign: 'center' }}>
+              <div style={{ fontFamily: T.mono, fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: T.muted, marginBottom: 8 }}>Till klassen</div>
+              <div style={{ fontFamily: T.display, fontSize: mobile ? 72 : 96, lineHeight: 0.9, letterSpacing: '-0.025em', fontVariantNumeric: 'tabular-nums' }}><CountUp value={r.profit} /></div>
+              <div style={{ fontFamily: T.display, fontStyle: 'italic', fontSize: mobile ? 24 : 32, marginTop: 2 }}>kronor</div>
+            </div>
+            <div style={{ display: 'flex', gap: 1.5, justifyContent: 'center', alignItems: 'flex-end', marginTop: 28, height: 44 }}>
+              {Array.from({length: 50}).map((_, i) => {
+                const w = (i * 7919 + sellers * 13 + shirtsPer * 31) % 5;
+                return <div key={i} style={{ width: w < 2 ? 3 : 1.5, height: w === 4 ? 30 : 44, background: T.fg }} />;
+              })}
+            </div>
+            <div style={{ textAlign: 'center', fontFamily: T.mono, fontSize: 10, letterSpacing: '0.4em', marginTop: 8, opacity: 0.6 }}>
+              VP {sellers}·{shirtsPer}·{r.profit}
+            </div>
+            <button style={{ marginTop: 32, background: T.fg, color: T.paper, border: 'none', width: '100%', padding: '20px', fontSize: 14, fontWeight: 500, fontFamily: T.mono, letterSpacing: '0.16em', textTransform: 'uppercase', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Lös in kvittot →</span>
+              <span>Beställ startpaket</span>
+            </button>
+            <div style={{ textAlign: 'center', fontFamily: T.mono, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: T.muted, marginTop: 16 }}>★ ★ ★ tack för att ni handlar lokalt ★ ★ ★</div>
+          </div>
+        </div>
+      </section>
+
+      <section style={{ background: T.fg, color: T.bg, padding: mobile ? '60px 24px' : '120px 60px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: mobile ? 32 : 64, flexWrap: 'wrap', gap: 16 }}>
+          <h2 style={{ fontFamily: T.display, fontSize: mobile ? 44 : 80, margin: 0, fontWeight: 400, letterSpacing: '-0.02em', lineHeight: 1 }}>
+            Sex <em style={{ fontStyle: 'italic' }}>kollektioner</em><br/>redan i lager.
+          </h2>
+          <div style={{ fontFamily: T.mono, fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', opacity: 0.6, maxWidth: 280 }}>Inga 4 veckors katalogvänta. Tröjorna packas och skickas dagen ni beställer.</div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr 1fr' : 'repeat(3, 1fr)', gap: mobile ? 16 : 32 }}>
+          {[
+            { name: 'Vinstpotten / Klass-edition', tag: 'Bestseller', tee: '#F4EFE6', print: 'Klass av 2026', textC: '#191613' },
+            { name: 'Vinstpotten / Lag-edition', tag: '128 st kvar', tee: '#3F2742', print: 'för laget.', textC: '#F4EFE6' },
+            { name: 'Vinstpotten / Förenings-edition', tag: 'Ny', tee: '#7A4A2E', print: 'tillsammans', textC: '#F4EFE6' },
+            { name: 'Vinstpotten / Studentbal', tag: 'Säsong', tee: '#2D3F2D', print: '— studenter —', textC: '#D4F25E' },
+            { name: 'Vinstpotten / Cup-edition', tag: 'Snabbsäljare', tee: '#191613', print: 'cuplaget', textC: '#F4EFE6' },
+            { name: 'Vinstpotten / Skolavslutning', tag: 'Begränsat', tee: '#5A3F2E', print: 'klar 2026', textC: '#F4EFE6' },
+          ].map((p, i) => (
+            <div key={i} style={{ display: 'flex', flexDirection: 'column' }}>
+              <div style={{ background: T.paper, aspectRatio: '4/5', display: 'grid', placeItems: 'center', position: 'relative', overflow: 'hidden' }}>
+                <Tee fill={p.tee} size={mobile ? 140 : 220} print={p.print} printColor={p.textC} />
+                <div style={{ position: 'absolute', top: 12, left: 12, fontFamily: T.mono, fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', background: T.fg, color: T.bg, padding: '4px 8px' }}>{p.tag}</div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingTop: 14, gap: 8, flexWrap: 'wrap' }}>
+                <div style={{ fontFamily: T.display, fontSize: mobile ? 18 : 22, lineHeight: 1.1, letterSpacing: '-0.01em' }}>{p.name}</div>
+                <div style={{ fontFamily: T.mono, fontSize: 12, opacity: 0.7 }}>249 kr</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section style={{ padding: mobile ? '60px 24px' : '120px 60px', background: T.bg }}>
+        <div style={{ fontFamily: T.mono, fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: T.muted, display: 'flex', justifyContent: 'space-between', borderBottom: `1px solid ${T.fg}`, paddingBottom: 12, marginBottom: mobile ? 32 : 48, gap: 12, flexWrap: 'wrap' }}>
+          <span>Berättelse / Nº 047</span>
+          <span>2 400+ grupper sedan 2019</span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: mobile ? '1fr' : '1fr 1.4fr', gap: mobile ? 32 : 64, alignItems: 'center' }}>
+          <div>
+            <div style={{ fontFamily: T.display, fontSize: mobile ? 32 : 44, fontStyle: 'italic', lineHeight: 1.15, letterSpacing: '-0.01em' }}>
+              "Vi sålde slut på fyra veckor. Tröjorna fanns hemma redan veckan vi bokade. Mormor köpte tre."
+            </div>
+            <div style={{ fontFamily: T.mono, fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', color: T.muted, marginTop: 24 }}>Mira · klassrep · 8B Norsborgsskolan</div>
+            <div style={{ marginTop: 32, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', borderTop: `1px solid ${T.fg}`, borderBottom: `1px solid ${T.fg}` }}>
+              {[['Sålt', '412 st'], ['Vinst', '28 748 kr'], ['Tid', '4 veckor']].map(([l, v], i) => (
+                <div key={i} style={{ padding: '20px 4px', borderRight: i < 2 ? `1px solid ${T.fg}33` : 'none' }}>
+                  <div style={{ fontFamily: T.mono, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: T.muted }}>{l}</div>
+                  <div style={{ fontFamily: T.display, fontSize: mobile ? 24 : 32, marginTop: 4, letterSpacing: '-0.01em' }}>{v}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <PhotoPlaceholder label="Klassbild · 8B vid Brandenburger Tor" tone="warm" style={{ aspectRatio: '4/3', width: '100%' }} />
+        </div>
+        <div style={{ marginTop: mobile ? 48 : 80, display: 'grid', gridTemplateColumns: mobile ? '1fr' : '1fr 1fr', gap: mobile ? 32 : 48 }}>
+          {CASES.slice(1).map((c, i) => (
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 20, borderTop: `1px solid ${T.fg}33`, paddingTop: 20 }}>
+              <PhotoPlaceholder label={c.klass.split('·')[0].trim()} tone="warm" style={{ aspectRatio: '1', width: '100%' }} />
+              <div>
+                <div style={{ fontFamily: T.mono, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: T.muted, marginBottom: 8 }}>{c.where}</div>
+                <div style={{ fontFamily: T.display, fontSize: mobile ? 22 : 26, lineHeight: 1.1, letterSpacing: '-0.01em' }}>{c.klass}</div>
+                <div style={{ fontFamily: T.display, fontSize: mobile ? 36 : 48, marginTop: 8, letterSpacing: '-0.02em' }}>{c.summa.toLocaleString('sv-SE')} kr</div>
+                <div style={{ fontSize: 13, opacity: 0.7, marginTop: 6 }}>{c.goal} · {c.shirts} tröjor</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section style={{ padding: mobile ? '80px 24px' : '160px 60px', background: T.primary, color: T.primaryFg }}>
+        <div style={{ fontFamily: T.mono, fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', opacity: 0.65, marginBottom: 32 }}>↘ två minuter, mobilt BankID</div>
+        <h2 style={{ fontFamily: T.display, fontSize: mobile ? 56 : 144, margin: 0, fontWeight: 400, letterSpacing: '-0.03em', lineHeight: 0.9 }}>
+          Beställ startpaket.<br/>
+          <em style={{ fontStyle: 'italic', opacity: 0.7 }}>Det är på<br/>torsdag.</em>
+        </h2>
+        <button style={{ marginTop: 56, background: T.paper, color: T.fg, border: 'none', padding: '24px 36px', fontSize: 16, fontWeight: 500, fontFamily: T.mono, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 16 }}>
+          Starta beställning
+          <span style={{ fontFamily: T.display, fontSize: 24 }}>→</span>
+        </button>
+      </section>
+
+      <footer style={{ padding: mobile ? '32px 24px' : '40px 60px', display: 'flex', justifyContent: 'space-between', fontFamily: T.mono, fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', color: T.muted, flexWrap: 'wrap', gap: 12 }}>
+        <span>Vinstpotten AB · 559123-4567</span>
+        <span>Stockholm · MMXXVI</span>
+      </footer>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Direction marker (intro band before each direction)
+// ─────────────────────────────────────────────────────────────
+function DirectionMarker({ id, num, name, blurb, mobile }) {
+  return (
+    <div id={id} style={{ background: '#0F0D0B', color: '#F4EFE6', padding: mobile ? '40px 24px' : '64px 80px', display: 'grid', gridTemplateColumns: mobile ? '1fr' : 'auto 1fr auto', gap: mobile ? 16 : 48, alignItems: 'baseline' }}>
+      <div style={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace', fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', opacity: 0.55 }}>Riktning {num}</div>
+      <div>
+        <div style={{ fontFamily: '"Instrument Serif", serif', fontSize: mobile ? 40 : 64, lineHeight: 1, letterSpacing: '-0.025em' }}>{name}</div>
+        <div style={{ fontSize: mobile ? 14 : 16, opacity: 0.7, marginTop: 8, maxWidth: 600 }}>{blurb}</div>
+      </div>
+      <div style={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace', fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', opacity: 0.45 }}>↓ scroll för att se</div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Sticky direction nav
+// ─────────────────────────────────────────────────────────────
+function DirectionNav({ mobile }) {
+  return (
+    <div style={{ position: 'sticky', top: 0, zIndex: 50, background: 'rgba(15,13,11,0.92)', color: '#F4EFE6', backdropFilter: 'blur(8px)', borderBottom: '1px solid rgba(244,239,230,0.1)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: mobile ? '12px 16px' : '14px 32px', gap: 16, flexWrap: 'wrap' }}>
+        <div style={{ fontFamily: '"Instrument Serif", serif', fontSize: mobile ? 18 : 22, fontStyle: 'italic', letterSpacing: '-0.02em' }}>Vinstpotten 2026 · designriktningar</div>
+        <nav style={{ display: 'flex', gap: mobile ? 12 : 24, fontFamily: '"JetBrains Mono", ui-monospace, monospace', fontSize: mobile ? 10 : 11, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+          <a href="#saker" style={{ color: 'inherit', textDecoration: 'none', opacity: 0.85 }}>01 Säker</a>
+          <a href="#djarv" style={{ color: 'inherit', textDecoration: 'none', opacity: 0.85 }}>02 Djärv</a>
+          <a href="#ovantad" style={{ color: 'inherit', textDecoration: 'none', opacity: 0.85 }}>03 Oväntad</a>
+        </nav>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// App — stacked directions, responsive
+// ─────────────────────────────────────────────────────────────
+function useIsMobile(breakpoint = 768) {
+  const [mobile, setMobile] = React.useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth < breakpoint : false
+  );
+  React.useEffect(() => {
+    const handler = () => setMobile(window.innerWidth < breakpoint);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, [breakpoint]);
+  return mobile;
+}
+
+function App() {
+  const mobile = useIsMobile();
+  return (
+    <>
+      <DirectionNav mobile={mobile} />
+      <DirectionMarker id="saker" num="01" name="Säker" blurb="Editorial Scandinavian — plommon på off-white, calculator-as-hero, ordnad layout." mobile={mobile} />
+      <SakerHomepage mobile={mobile} />
+      <DirectionMarker id="djarv" num="02" name="Djärv" blurb="Magazine poster — oversized typografi, asymmetri, acid-lime som rotation-färg." mobile={mobile} />
+      <DjarvHomepage mobile={mobile} />
+      <DirectionMarker id="ovantad" num="03" name="Oväntad" blurb="Räknesnurran ÄR ett kvitto. Tactil, lekfull, produktorienterad. Mono-forward." mobile={mobile} />
+      <OvantadHomepage mobile={mobile} />
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
