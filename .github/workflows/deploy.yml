@@ -40,11 +40,19 @@ jobs:
 
       - name: Validate deploy secrets
         env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
-          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
-          SSH_REMOTE_PATH: ${{ secrets.SSH_REMOTE_PATH }}
+          SSH_HOST_RAW: ${{ secrets.SSH_HOST }}
+          SSH_USER_RAW: ${{ secrets.SSH_USER }}
+          SSH_PASSWORD_RAW: ${{ secrets.SSH_PASSWORD }}
+          SSH_REMOTE_PATH_RAW: ${{ secrets.SSH_REMOTE_PATH }}
         run: |
+          # Trim whitespace + carriage returns. A trailing newline pasted into
+          # the GitHub Secrets UI is the most common cause of "Permission denied"
+          # despite the right password.
+          SSH_HOST=$(printf '%s' "$SSH_HOST_RAW" | tr -d '\r\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+          SSH_USER=$(printf '%s' "$SSH_USER_RAW" | tr -d '\r\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+          SSH_PASSWORD=$(printf '%s' "$SSH_PASSWORD_RAW" | tr -d '\r\n')
+          SSH_REMOTE_PATH=$(printf '%s' "$SSH_REMOTE_PATH_RAW" | tr -d '\r\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+
           missing=()
           [ -z "$SSH_HOST" ] && missing+=("SSH_HOST")
           [ -z "$SSH_USER" ] && missing+=("SSH_USER")
@@ -55,14 +63,23 @@ jobs:
             echo "Add at github.com/${{ github.repository }}/settings/secrets/actions"
             exit 1
           fi
-          echo "✓ All deploy secrets present"
-          echo "  Host length: ${#SSH_HOST}"
-          echo "  User length: ${#SSH_USER}"
-          echo "  Remote path: $SSH_REMOTE_PATH"
+
+          echo "✓ All deploy secrets present (post-trim)"
+          echo "  SSH_HOST length:        ${#SSH_HOST} (raw was ${#SSH_HOST_RAW})"
+          echo "  SSH_USER length:        ${#SSH_USER} (raw was ${#SSH_USER_RAW})"
+          echo "  SSH_PASSWORD length:    ${#SSH_PASSWORD} (raw was ${#SSH_PASSWORD_RAW})"
+          echo "  SSH_REMOTE_PATH:        $SSH_REMOTE_PATH"
+          if [ ${#SSH_HOST} -ne ${#SSH_HOST_RAW} ] || [ ${#SSH_USER} -ne ${#SSH_USER_RAW} ] || [ ${#SSH_PASSWORD} -ne ${#SSH_PASSWORD_RAW} ]; then
+            echo "::warning::One or more secrets had trailing whitespace/newline — that was likely the auth failure."
+          fi
+
+          # Export the trimmed values for subsequent steps via $GITHUB_ENV.
+          echo "SSH_HOST=$SSH_HOST" >> "$GITHUB_ENV"
+          echo "SSH_USER=$SSH_USER" >> "$GITHUB_ENV"
+          echo "SSH_PASSWORD=$SSH_PASSWORD" >> "$GITHUB_ENV"
+          echo "SSH_REMOTE_PATH=$SSH_REMOTE_PATH" >> "$GITHUB_ENV"
 
       - name: Resolve and trust the SSH host
-        env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
@@ -78,13 +95,10 @@ jobs:
           echo "known_hosts entries: $(wc -l < ~/.ssh/known_hosts 2>/dev/null || echo 0)"
 
       - name: Deploy dist/ to one.com via rsync
-        env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
-          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
-          SSH_REMOTE_PATH: ${{ secrets.SSH_REMOTE_PATH }}
         run: |
           echo "Deploying to $SSH_USER@$SSH_HOST:$SSH_REMOTE_PATH/"
-          sshpass -p "$SSH_PASSWORD" rsync -avz --delete \
-            -e "ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 -o ServerAliveInterval=15" \
+          # SSHPASS=… avoids exposing the password as a process arg
+          export SSHPASS="$SSH_PASSWORD"
+          sshpass -e rsync -avz --delete \
+            -e "ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 -o ServerAliveInterval=15 -o PreferredAuthentications=password -o PubkeyAuthentication=no" \
             dist/ "$SSH_USER@$SSH_HOST:$SSH_REMOTE_PATH/"
