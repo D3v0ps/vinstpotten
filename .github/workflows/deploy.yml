@@ -97,8 +97,20 @@ jobs:
       - name: Deploy dist/ to one.com via rsync
         run: |
           echo "Deploying to $SSH_USER@$SSH_HOST:$SSH_REMOTE_PATH/"
-          # SSHPASS=… avoids exposing the password as a process arg
           export SSHPASS="$SSH_PASSWORD"
           sshpass -e rsync -avz --delete \
             -e "ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 -o ServerAliveInterval=15 -o PreferredAuthentications=password -o PubkeyAuthentication=no" \
             dist/ "$SSH_USER@$SSH_HOST:$SSH_REMOTE_PATH/"
+
+      - name: Verify remote contents
+        run: |
+          export SSHPASS="$SSH_PASSWORD"
+          SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 -o PreferredAuthentications=password -o PubkeyAuthentication=no"
+          echo "=== Remote home directory ==="
+          sshpass -e ssh $SSH_OPTS "$SSH_USER@$SSH_HOST" "pwd && ls -la"
+          echo ""
+          echo "=== Webroot contents ($SSH_REMOTE_PATH) ==="
+          sshpass -e ssh $SSH_OPTS "$SSH_USER@$SSH_HOST" "ls -la '$SSH_REMOTE_PATH/' && echo '---' && head -2 '$SSH_REMOTE_PATH/index.html' 2>/dev/null || echo 'index.html missing'"
+          echo ""
+          echo "=== Look for any other webroots on this account ==="
+          sshpass -e ssh $SSH_OPTS "$SSH_USER@$SSH_HOST" "ls -la /webroots/ 2>/dev/null || ls -la ~ 2>/dev/null" || true
