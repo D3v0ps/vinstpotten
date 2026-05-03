@@ -74,6 +74,35 @@ npm run build
 rsync -az --delete dist/ user@host:/webroots/0cb382e2/
 ```
 
+## Admin-betalverktyg (`/admin`)
+
+Tool för att skicka betallänkar och bekräftelsemejl utifrån ett reg/deltagar-ID.
+
+### Setup
+
+1. **Migration** — kör `supabase/migrations/20260503000001_admin_payment_tool.sql` (lägger till `payment_links`, `email_log`, `is_admin()`, `lookup_reference()`).
+2. **Sätt admin-roll** på ditt konto i `profiles`-tabellen:
+   ```sql
+   update public.profiles set role = 'admin' where id = '<din-user-id>';
+   ```
+3. **Edge Function secrets** (Supabase dashboard → Edge Functions → Secrets, eller `supabase secrets set …`):
+   - `STRIPE_SECRET_KEY` (`sk_test_…` / `sk_live_…`)
+   - `STRIPE_WEBHOOK_SECRET` (`whsec_…`)
+   - `STRIPE_SUCCESS_URL`, `STRIPE_CANCEL_URL`
+   - `RESEND_API_KEY`, `MAIL_FROM`
+   - `SUPABASE_SERVICE_ROLE_KEY` (auto i de flesta fall, dubbelkolla)
+4. **Deploy functions:**
+   ```bash
+   supabase functions deploy create-payment-link
+   supabase functions deploy send-payment-confirmation
+   supabase functions deploy stripe-webhook --no-verify-jwt
+   ```
+5. **Stripe webhook** — peka på `https://<project>.supabase.co/functions/v1/stripe-webhook` med events `checkout.session.completed`, `checkout.session.expired`.
+
+### Mejlmallar
+
+`src/lib/emailTemplates.ts` (klient/förhandsvisning) och `supabase/functions/_shared/templates.ts` (server/skick) håller två mallar — `payment_link` och `payment_confirmation`. Klistra in färdig HTML/text på de markerade ställena. Fält substitueras med `{{namn}}`-syntax (se `TemplateVars`).
+
 ## Roadmap
 
 ### Fas 1 (klart) — Statisk plattform med beställ-flöde

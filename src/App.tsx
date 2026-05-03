@@ -7,6 +7,7 @@ import { Kollektioner } from '@/pages/Kollektioner';
 import { Berattelser } from '@/pages/Berattelser';
 import { Faq } from '@/pages/Faq';
 import { Salj } from '@/pages/Salj';
+import { Admin } from '@/pages/Admin';
 import { NotFound } from '@/pages/NotFound';
 
 export default function App() {
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="/berattelser" element={<Berattelser />} />
         <Route path="/faq" element={<Faq />} />
         <Route path="/salj" element={<Salj />} />
+        <Route path="/admin" element={<Admin />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Layout>
