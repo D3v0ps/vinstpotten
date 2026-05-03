@@ -38,12 +38,44 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y rsync sshpass
 
-      - name: Trust the SSH host
+      - name: Validate deploy secrets
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+          SSH_REMOTE_PATH: ${{ secrets.SSH_REMOTE_PATH }}
+        run: |
+          missing=()
+          [ -z "$SSH_HOST" ] && missing+=("SSH_HOST")
+          [ -z "$SSH_USER" ] && missing+=("SSH_USER")
+          [ -z "$SSH_PASSWORD" ] && missing+=("SSH_PASSWORD")
+          [ -z "$SSH_REMOTE_PATH" ] && missing+=("SSH_REMOTE_PATH")
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing GitHub secrets: ${missing[*]}"
+            echo "Add at github.com/${{ github.repository }}/settings/secrets/actions"
+            exit 1
+          fi
+          echo "✓ All deploy secrets present"
+          echo "  Host length: ${#SSH_HOST}"
+          echo "  User length: ${#SSH_USER}"
+          echo "  Remote path: $SSH_REMOTE_PATH"
+
+      - name: Resolve and trust the SSH host
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          chmod 700 ~/.ssh
+          echo "DNS lookup for $SSH_HOST:"
+          getent hosts "$SSH_HOST" || echo "  (no entry — checking AAAA)"
+          getent ahosts "$SSH_HOST" | head -5 || true
+          echo ""
+          echo "Running ssh-keyscan…"
+          ssh-keyscan -T 15 -H "$SSH_HOST" >> ~/.ssh/known_hosts 2> >(tee /tmp/keyscan.err >&2) || {
+            echo "::warning::ssh-keyscan exited non-zero. Falling back to StrictHostKeyChecking=accept-new."
+            cat /tmp/keyscan.err 2>/dev/null || true
+          }
+          echo "known_hosts entries: $(wc -l < ~/.ssh/known_hosts 2>/dev/null || echo 0)"
 
       - name: Deploy dist/ to one.com via rsync
         env:
@@ -52,7 +84,7 @@ jobs:
           SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
           SSH_REMOTE_PATH: ${{ secrets.SSH_REMOTE_PATH }}
         run: |
-          # Trailing slash on dist/ uploads contents into the remote dir.
-          sshpass -p "$SSH_PASSWORD" rsync -az --delete \
-            -e "ssh -o StrictHostKeyChecking=accept-new" \
+          echo "Deploying to $SSH_USER@$SSH_HOST:$SSH_REMOTE_PATH/"
+          sshpass -p "$SSH_PASSWORD" rsync -avz --delete \
+            -e "ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 -o ServerAliveInterval=15" \
             dist/ "$SSH_USER@$SSH_HOST:$SSH_REMOTE_PATH/"
